@@ -9,7 +9,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from merge_imdb import SOURCES, extract, merge_row
+from _imdb import SOURCES, extract, merge_row
+from filter_movies import exclusion_reason
 
 
 class MergeChecks(unittest.TestCase):
@@ -49,6 +50,25 @@ class MergeChecks(unittest.TestCase):
         with self.assertRaises(ValueError):
             merge_row(self.wiki, self.sources)
 
+    def test_tv_movie_allowed_but_video_excluded(self):
+        row = {"imdb_title_type": "tvMovie", "imdb_rating": "6.0"}
+        self.assertEqual(exclusion_reason(row), "")
+        row["imdb_title_type"] = "video"
+        self.assertTrue(exclusion_reason(row))
+        row["imdb_title_type"] = "movie"
+        row["imdb_rating"] = ""
+        self.assertTrue(exclusion_reason(row))
+
+    def test_sourced_override_preserves_wikidata_date(self):
+        correction = {"Q_TEST": {"imdb_id": "tt_TEST", "release_date": "2020-10-10",
+                                   "source_url": "https://example.org/source", "reason": "Synthetic correction"}}
+        with patch('pathlib.Path.read_text', return_value=json.dumps(correction)):
+            row = merge_row(self.wiki, self.sources)
+        self.assertEqual(row["wikidata_earliest_release_date"], "2024")
+        self.assertEqual(row["release_date"], "2020-10-10")
+        self.assertEqual(row["planned_split"], "train")
+        self.assertEqual(row["release_date_source"], "https://example.org/source")
+
     def test_stream_retains_all_principal_rows_and_reuses_cache(self):
         payload = ('tconst\tordering\tnconst\tcategory\n'
                    'tt_OTHER\t1\tnm_SKIP\tactor\n'
@@ -57,7 +77,7 @@ class MergeChecks(unittest.TestCase):
         response = io.BytesIO(gzip.compress(payload.encode()))
         response.headers = {}
         with tempfile.TemporaryDirectory() as folder:
-            with patch('merge_imdb.urlopen', return_value=response) as network:
+            with patch('_imdb.urlopen', return_value=response) as network:
                 first = extract('title.principals', {'tt_TEST'}, Path(folder))
                 second = extract('title.principals', {'tt_TEST'}, Path(folder))
                 self.assertEqual(len(first['rows']['tt_TEST']), 2)

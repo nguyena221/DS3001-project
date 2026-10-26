@@ -73,36 +73,3 @@ def split_for_year(year):
     if year == 2025:
         return "test"
     return "outside_scope"
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=ROOT / "data/raw/trial/movies.csv")
-    parser.add_argument("--output", type=Path, default=ROOT / "data/processed/trial_release_dates.csv")
-    args = parser.parse_args()
-    if args.input.resolve() == args.output.resolve():
-        parser.error("Output must differ from the raw input")
-    with args.input.open(encoding="utf-8-sig", newline="") as handle:
-        rows = list(csv.DictReader(handle))
-    if not rows:
-        parser.error("Input has no movie rows")
-    ids = [row["wikidata_id"] for row in rows]
-    if len(ids) != len(set(ids)):
-        parser.error("Input contains duplicate Wikidata IDs; review before splitting")
-    counts = {}
-    for row in rows:
-        row.update(choose_release(json.loads(row["release_dates"])))
-        row["planned_split"] = split_for_year(row["release_year"])
-        counts[row["planned_split"]] = counts.get(row["planned_split"], 0) + 1
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    with args.output.open("w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
-    print(f"Saved {len(rows)} movies to {args.output}")
-    print(f"Planned splits (metadata trial only): {counts}")
-    print(f"Missing release month: {sum(r['release_month'] == '' for r in rows)}")
-
-
-if __name__ == "__main__":
-    main()
