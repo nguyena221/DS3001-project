@@ -1,4 +1,4 @@
-"""Count IMDb title types and select a reproducible rated movie pilot.
+"""Collect IMDb data, count title types, and select a rated movie pilot.
 
 Downloads basics/ratings once; caches compressed files locally for future runs.
 Only a bounded candidate pool is kept in memory. No third-party packages needed.
@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from _imdb import ROOT, now
+from imdb_merge_helpers import ROOT, now
 
 
 def download(name, folder):

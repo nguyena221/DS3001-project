@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from _imdb import SOURCES, extract, merge_row
+from imdb_merge_helpers import SOURCES, extract, merge_row
 from filter_movies import exclusion_reason
 
 
@@ -96,7 +96,7 @@ class MergeChecks(unittest.TestCase):
         response = io.BytesIO(gzip.compress(payload.encode()))
         response.headers = {}
         with tempfile.TemporaryDirectory() as folder:
-            with patch('_imdb.urlopen', return_value=response) as network:
+            with patch('imdb_merge_helpers.urlopen', return_value=response) as network:
                 first = extract('title.principals', {'tt_TEST'}, Path(folder))
                 second = extract('title.principals', {'tt_TEST'}, Path(folder))
                 self.assertEqual(len(first['rows']['tt_TEST']), 2)

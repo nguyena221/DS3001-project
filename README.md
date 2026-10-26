@@ -1,7 +1,7 @@
 # Movie rating prediction
 
 School project predicting IMDb ratings from movie characteristics. Scope:
-worldwide movies and TV movies first released in 2016–2025. No models trained yet.
+worldwide movies and TV movies with IMDb release years 2016-2025. No models trained yet.
 
 ## Quick update for the group
 
@@ -20,7 +20,7 @@ It contains 100 movies that currently meet our type, rating, and date rules.
 | File in data/processed/ | Purpose |
 |---|---|
 | imdb_first_combined_eligible.csv | Current usable pilot: 100 movies |
-| imdb_first_combined_excluded.csv | 20 boundary-check candidates outside 2016?2025 |
+| imdb_first_combined_excluded.csv | 20 boundary-check candidates outside 2016-2025 |
 | imdb_first_combined.csv | All 120 candidates, including unresolved records |
 | imdb_first_combined.summary.json | Match counts and planned split totals |
 
@@ -43,13 +43,36 @@ Run the first three scripts in order; the remaining files support those scripts.
 
 | File | What it does |
 |---|---|
-| collect_imdb_first.py | Downloads/caches IMDb basics and ratings, counts title categories, and selects the pilot candidates. |
-| enrich_imdb_first.py | Matches candidates to Wikidata, adds extra fields and IMDb cast/directors, and saves the combined table. |
+| collect_data_imdb.py | Downloads/caches IMDb basics and ratings, counts title categories, and selects the pilot candidates. |
+| add_wikidata_to_imdb.py | Matches candidates to Wikidata, adds extra fields and IMDb cast/directors, and saves the combined table. |
 | filter_movies.py | Applies our movie-type, rating, and date rules; saves eligible records and exclusion/hold reasons. |
-| _imdb.py | Internal functions for reading IMDb records and merging them with Wikidata. Do not run directly. |
-| _wikidata.py | Internal functions for requesting Wikidata records, respecting rate limits, and preserving multi-values. |
-| _release_dates.py | Internal functions for selecting the earliest recorded release and assigning a year-based split. |
+| imdb_merge_helpers.py | Helper functions used by add_wikidata_to_imdb.py to read IMDb records and merge sources. The collector also imports shared utilities here. Do not run directly. |
+| request_wikidata.py | Helper functions for requesting Wikidata records, waiting/retrying requests, and preserving multiple values. Do not run directly. |
+| handle_release_dates.py | Helper functions for interpreting supplemental Wikidata dates without guessing missing parts, and assigning split labels from IMDb years. Do not run directly. |
 | release_overrides.json | Approved date corrections with movie IDs, source links, and reasons. |
+
+**What release_overrides.json means:** it is a small correction list, not a
+downloaded dataset or a script. It currently contains one verified correction
+for The Man with Hare Ears, whose saved Wikidata date was in 2021 but whose
+documented festival premiere was October 10, 2020.
+
+| Part of the entry | Meaning |
+|---|---|
+| Q100145860 | Wikidata ID: identifies exactly which movie this correction belongs to. |
+| imdb_id | Its IMDb ID; the code checks this too so the correction cannot silently apply to a different record. |
+| release_date | The verified supplemental date in YYYY-MM-DD format: 2020-10-10. |
+| reason | Why the downloaded date needs a correction. |
+| source_url | The evidence supporting the corrected date. |
+
+The merge helper reads this list automatically. When the movie appears in a
+collection, it preserves the original Wikidata date and records the corrected
+supplemental date, reason, and source in the combined table. The current IMDb-first
+sample may not contain that movie, so the entry can have no effect on that run.
+IMDb startYear still controls the final release_year and split. The corrected
+date can provide a month only when its year agrees with IMDb; otherwise the month
+is withheld. It does not silently override IMDb's year or change the raw download.
+Add entries only for verified, documented corrections. An empty object (`{}`)
+would mean no approved supplemental corrections.
 
 ### data/ — local data, not uploaded to GitHub
 
@@ -111,14 +134,9 @@ These use made-up records, not downloaded IMDb data. Run them with
 | test_imdb_first.py | Checks repeatable selection priorities, safe ID lookup queries, and release-year eligibility. |
 | test_merge_imdb.py | Checks merging, missing matches, cast ordering, caching, TV-movie eligibility, and date corrections. |
 
-### notebooks/ — future exploration and model experiments
-
-Currently empty apart from .gitkeep. Later, this is where we can explore data
-and explain model results interactively.
-
 ### Automatically generated and hidden folders
 
-- .gitkeep in notebooks/, data/raw/, and data/processed/ is an empty placeholder
+- .gitkeep in data/raw/ and data/processed/ is an empty placeholder
   so Git retains those folders; it contains no data or code.
 - .venv/ contains the local Python environment and is ignored by Git. Its files
   are installed/generated by Python, not project files to edit.
@@ -146,7 +164,7 @@ converted. People and Wikidata categories remain IDs until later preprocessing.
   types such as video, shorts, episodes, and series. Video can include actual films;
   excluding that category is a scope choice. Never relabel it to bypass the rule.
 - Use IMDb startYear for filtering and splitting. The population is movies with
-  IMDb release years 2016?2025, not verified first worldwide releases.
+  IMDb release years 2016-2025, not verified first worldwide releases.
 - Wikidata supplies an optional month from its earliest valid recorded date.
   Use that month only when the selected date agrees with IMDb's year; otherwise
   leave it blank and flag the disagreement. Missing months do not exclude movies.
@@ -166,16 +184,16 @@ If the environment already exists, skip the first command.
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe src\collect_imdb_first.py
-.\.venv\Scripts\python.exe src\enrich_imdb_first.py
+.\.venv\Scripts\python.exe src\collect_data_imdb.py
+.\.venv\Scripts\python.exe src\add_wikidata_to_imdb.py
 .\.venv\Scripts\python.exe src\filter_movies.py
 ```
 
-1. collect_imdb_first.py counts every IMDb type and selects ten rated movie/tvMovie
+1. collect_data_imdb.py counts every IMDb type and selects ten rated movie/tvMovie
    candidates per year, plus 2015/2026 boundary checks (120 candidates). A seeded
    hash sample avoids selecting by score or popularity; it is not guaranteed
    representative. The boundary check is not an exhaustive coverage guarantee.
-2. enrich_imdb_first.py adds Wikidata fields and IMDb cast/crew. Missing or
+2. add_wikidata_to_imdb.py adds Wikidata fields and IMDb cast/crew. Missing or
    ambiguous Wikidata matches remain visible rather than guessed.
 3. filter_movies.py creates the eligible table and logs exclusions/holds.
 
@@ -183,9 +201,33 @@ Completed downloads and lookups are cached under data/raw/imdb_first/ and reused
 The large principal-cast compressed file is roughly 750 MiB; initial collection
 can take several minutes or longer during service outages. A failed download
 restarts that file; completed stages are retained. No API keys are needed.
-Files beginning with an underscore in src/ are internal helpers, not commands.
+imdb_merge_helpers.py, request_wikidata.py, and handle_release_dates.py are helper
+files imported by the main scripts; they are not commands to run yourself.
 The original trial and its combined table are saved under data/archive/ for
 reference. They are no longer part of the active workflow.
+
+## What filter_movies.py separates and why
+
+This is a rule check, not missing-value filling or model training. It reads the
+combined CSV and writes two views while leaving the combined file unchanged:
+
+- **eligible.csv:** records with an IMDb match, a rating, accepted movie/tvMovie
+  type, and IMDb year 2016-2025. This is the working pilot for later preparation.
+- **excluded.csv:** records that fail those rules, with an exclusion_reason column
+  explaining why. An unresolved year is held for review, not permanently deleted.
+
+For the current pilot, all 120 candidates already have accepted types and ratings.
+The script keeps the 100 from 2016-2025 and excludes the 20 old boundary-check
+candidates from 2015/2026. Those extra years came from the earlier date-policy
+investigation; they are no longer needed under the IMDb-year policy, although
+this collector still selects them. They do not enter our working sample.
+
+Missing month, runtime, language, country, budget, director, or cast does not by
+itself exclude a record here. We will handle those gaps during preprocessing.
+Saving exclusions lets us explain decisions and reconsider them without repeating
+collection. Separate files are convenient, not mandatory. They are also **not**
+the training/validation/test files: planned_split labels those groups within the
+eligible table. Python can select each group later without three more CSVs.
 
 ## Next decision
 

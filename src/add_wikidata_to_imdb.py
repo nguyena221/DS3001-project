@@ -1,12 +1,12 @@
-"""Add Wikidata supplements to the IMDb-first pilot; keep unmatched IDs visible."""
+"""Add Wikidata details to IMDb candidates; keep unmatched IDs visible."""
 import csv
 import json
 import re
 from urllib.parse import urlencode
 
-from _wikidata import get_json, fetch_entities, statements
-from _imdb import ROOT, SOURCES, extract, merge_row, now
-from collect_imdb_first import download
+from request_wikidata import get_json, fetch_entities, statements
+from imdb_merge_helpers import ROOT, SOURCES, extract, merge_row, now
+from collect_data_imdb import download
 
 
 def lookup_query(ids):

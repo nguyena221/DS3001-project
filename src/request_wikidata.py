@@ -1,4 +1,4 @@
-"""Internal Wikidata request and statement helpers used by enrichment."""
+"""Wikidata request, retry, and statement helpers; imported, not run directly."""
 
 import argparse
 import csv

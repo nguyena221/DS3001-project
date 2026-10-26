@@ -1,4 +1,7 @@
-"""Internal IMDb extraction and merge helpers used by the current workflow."""
+"""IMDb-reading and merging helpers for add_wikidata_to_imdb.py.
+
+Imported by other scripts; this is not a command to run directly.
+"""
 
 import argparse
 import csv
@@ -12,7 +15,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from _release_dates import choose_release, split_for_year
+from handle_release_dates import choose_release, split_for_year
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ("title.ratings", "title.basics", "title.crew", "title.principals")

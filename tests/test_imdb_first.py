@@ -3,8 +3,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from collect_imdb_first import priority
-from enrich_imdb_first import lookup_query
+from collect_data_imdb import priority
+from add_wikidata_to_imdb import lookup_query
 from filter_movies import exclusion_reason
 
 

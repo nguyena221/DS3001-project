@@ -1,4 +1,7 @@
-"""Apply the earliest recorded worldwide release rule without changing raw data."""
+"""Interpret supplemental Wikidata dates and map IMDb years to split labels.
+
+Imported by the merge helper; never changes the original source records.
+"""
 
 import argparse
 import calendar
