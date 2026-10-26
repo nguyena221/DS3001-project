@@ -96,7 +96,9 @@ def merge_row(wiki, sources):
                    release_year=corrected.year, release_month=corrected.month,
                    release_date_review="", release_date_source=override["source_url"],
                    release_date_correction_note=override["reason"])
-    row["planned_split"] = split_for_year(row["release_year"])
+    supplemental_year = row["release_year"]
+    row["supplemental_release_date"] = row["release_date"]
+    row["supplemental_release_date_source"] = row["release_date_source"]
     notes = []
     records = {}
     for source in SOURCES:
@@ -123,8 +125,20 @@ def merge_row(wiki, sources):
     row["principal_cast_ids"] = json.dumps(list(dict.fromkeys(r["nconst"] for r in cast)))
     if row["imdb_title_type"] and row["imdb_title_type"] not in ("movie", "tvMovie"):
         notes.append("IMDb titleType is outside movie/tvMovie scope")
-    if row["release_year"] != "" and row["imdb_start_year"]:
-        if str(row["release_year"]) != row["imdb_start_year"]:
-            notes.append("IMDb and canonical Wikidata release years differ")
+    # IMDb startYear defines the population and splits. Other dates only enrich it.
+    imdb_year = row["imdb_start_year"]
+    row["release_year"] = int(imdb_year) if imdb_year.isdigit() else ""
+    row["release_year_source"] = "IMDb startYear" if row["release_year"] != "" else ""
+    row["release_month_source"] = ""
+    if supplemental_year != "" and supplemental_year == row["release_year"]:
+        if row["release_month"] != "":
+            row["release_month_source"] = row["supplemental_release_date_source"]
+    else:
+        if supplemental_year != "" and row["release_year"] != "":
+            notes.append("IMDb and supplemental release years differ; month withheld")
+        row.update(release_date=imdb_year if row["release_year"] != "" else "",
+                   release_precision="year" if row["release_year"] != "" else "",
+                   release_month="", release_date_source=row["release_year_source"])
+    row["planned_split"] = split_for_year(row["release_year"])
     row["merge_review"] = "; ".join(notes)
     return row

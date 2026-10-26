@@ -27,7 +27,7 @@ class MergeChecks(unittest.TestCase):
         row = merge_row(self.wiki, self.sources)
         self.assertEqual(row["imdb_rating"], "")
         self.assertEqual(row["release_month"], "")
-        self.assertEqual(row["planned_split"], "validation")
+        self.assertEqual(row["planned_split"], "review")
         self.assertIn("missing title.ratings", row["merge_review"])
 
     def test_source_authority_cast_order_and_nulls(self):
@@ -42,7 +42,9 @@ class MergeChecks(unittest.TestCase):
         self.assertEqual(json.loads(row["principal_cast_ids"]), ["nm_A", "nm_B"])
         self.assertEqual(row["runtime_minutes"], "")
         self.assertEqual(json.loads(row["genres"]), ["Drama", "Comedy"])
-        self.assertEqual(row["release_year"], 2024)
+        self.assertEqual(row["release_year"], 2025)
+        self.assertEqual(row["release_month"], "")
+        self.assertEqual(row["planned_split"], "test")
         self.assertIn("release years differ", row["merge_review"])
 
     def test_ambiguous_ids_rejected(self):
@@ -60,6 +62,7 @@ class MergeChecks(unittest.TestCase):
         self.assertTrue(exclusion_reason(row))
 
     def test_sourced_override_preserves_wikidata_date(self):
+        self.sources["title.basics"]["rows"]["tt_TEST"] = [{"startYear": "2020", "titleType": "movie"}]
         correction = {"Q_TEST": {"imdb_id": "tt_TEST", "release_date": "2020-10-10",
                                    "source_url": "https://example.org/source", "reason": "Synthetic correction"}}
         with patch('pathlib.Path.read_text', return_value=json.dumps(correction)):
@@ -68,6 +71,22 @@ class MergeChecks(unittest.TestCase):
         self.assertEqual(row["release_date"], "2020-10-10")
         self.assertEqual(row["planned_split"], "train")
         self.assertEqual(row["release_date_source"], "https://example.org/source")
+
+    def test_missing_wikidata_dates_do_not_remove_imdb_year(self):
+        self.wiki["release_dates"] = "[]"
+        self.sources["title.basics"]["rows"]["tt_TEST"] = [{"startYear": "2024", "titleType": "movie"}]
+        row = merge_row(self.wiki, self.sources)
+        self.assertEqual(row["release_year"], 2024)
+        self.assertEqual(row["planned_split"], "validation")
+        self.assertEqual(row["release_month"], "")
+
+    def test_matching_year_keeps_month(self):
+        self.wiki["release_dates"] = json.dumps([{"value": {"time": "+2024-07-03T00:00:00Z", "precision": 11,
+                      "calendarmodel": "http://www.wikidata.org/entity/Q1985727"}}])
+        self.sources["title.basics"]["rows"]["tt_TEST"] = [{"startYear": "2024", "titleType": "movie"}]
+        row = merge_row(self.wiki, self.sources)
+        self.assertEqual(row["release_month"], 7)
+        self.assertEqual(row["release_month_source"], "Wikidata P577")
 
     def test_stream_retains_all_principal_rows_and_reuses_cache(self):
         payload = ('tconst\tordering\tnconst\tcategory\n'

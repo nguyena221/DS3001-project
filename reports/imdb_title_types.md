@@ -1,5 +1,16 @@
 # IMDb-first title-type audit
 
+## Current policy update
+
+IMDb startYear now determines filtering and splits. Rebuilt from saved data:
+100 eligible movies (80 train / 10 validation / 10 test); 20 boundary candidates
+excluded. Missing Wikidata dates no longer exclude otherwise eligible records.
+Wikidata's month is optional and is used only when its selected date agrees with
+IMDb's year. 86 of the 100 eligible records have no usable month. Eleven tests
+passed. The original date-policy results below are historical, superseded by
+this update; no general IMDb-year fallback decision remains pending.
+
+
 Counted the complete downloaded `title.basics` snapshot on October 26, 2026.
 These are title records, not usable final training examples. Year counts use
 IMDb `startYear`, not the canonical earliest worldwide release year.

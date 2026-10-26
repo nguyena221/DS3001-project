@@ -17,7 +17,7 @@ def exclusion_reason(row):
     if row.get("planned_split") == "review":
         return "Release year unresolved; held for review, not model-ready"
     if row.get("planned_split") == "outside_scope":
-        return "Canonical release year outside 2016–2025"
+        return "IMDb release year outside 2016–2025"
     return ""
 
 
